@@ -1,0 +1,80 @@
+services:
+
+  mariadb:
+    container_name: mariadb
+    networks:
+      - inception
+    build: ./requirements/mariadb/.
+    restart: on-failure
+    env_file: .env
+    secrets:
+      - mariadb_password
+      - mariadb_root_password
+    volumes:
+      - mariadb:/var/lib/mysql
+    expose:
+      - "${DB_PORT}"
+
+  wordpress:
+    container_name: wordpress
+    networks:
+      - inception
+    build: ./requirements/wordpress/.
+    restart: on-failure
+    env_file: .env
+    depends_on:
+      - mariadb
+    secrets:
+      - mariadb_password
+      - wp_admin_password
+      - wp_password
+    volumes:
+      - wordpress:/var/www/wordpress
+    expose:
+      - "${PHP_PORT}"
+
+  nginx:
+    container_name: nginx
+    networks:
+      - inception
+    build: ./requirements/nginx/.
+    restart: on-failure
+    env_file: .env
+    depends_on:
+      - wordpress
+    ports:
+      - "${HTTP}:${HTTP}"
+    volumes:
+      - wordpress:/var/www/wordpress
+
+
+secrets:
+
+  wp_password:
+    file: ../secrets/wp_password.txt
+  wp_admin_password:
+    file: ../secrets/wp_admin_password.txt
+  mariadb_password:
+    file: ../secrets/mariadb_password.txt
+  mariadb_root_password:
+    file: ../secrets/mariadb_root_password.txt
+
+volumes:
+
+  mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/tcros/data/mariadb
+
+  wordpress:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/tcros/data/wordpress
+
+networks:
+  inception:
+    driver: bridge
