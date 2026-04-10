@@ -6,30 +6,24 @@
 #    By: tcros <tcros@student.42.fr>                +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/20 11:03:25 by tcros             #+#    #+#              #
-#    Updated: 2026/03/10 14:34:25 by tcros            ###   ########.fr        #
+#    Updated: 2026/04/02 16:43:31 by tcros            ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 ### VARIABLES ###
-# NOM #
-EXEC	= RPN
+# NAME #
+NAME	= inception
 
 # COMPILATION #
-CC 		= c++
-INC		= includes/
-CFLAGS 	= -Wshadow -Wall -Wextra -Werror -g3 -I$(INC) -std=c++98
+BUILD	= docker compose
+DFLAGS 	= -f
+DOWN	= down
+UP		= up --build
+CLEAN_F	= --rmi all -v
 
 # SOURCES #
-SRC 	= src/coloring.cpp \
-		  src/RPN.cpp \
-		  main.cpp
-
-# OBJETS #
-OBJ_DIR	= obj
-OBJ		= $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRC))
-
-# TOTAL DE FICHIERS #
-TOTAL	= $(words $(SRC))
+DAT_PATH= /home/tcros/data
+SRC 	= srcs/docker-compose.yml
 
 ### COULEURS ###
 GREEN	= \033[3;32m
@@ -41,39 +35,34 @@ NC		= \033[0m
 
 ### REGLES D'INFERENCES ###
 # REGLES PHONY #
-.PHONY: all clean fclean re
+.PHONY: all down clean fclean re
 
-all: $(EXEC)
+help:
+	@printf "$(BLUE)Commandes du projet Inception :$(NC)\n"
+	@printf "  $(GREEN)make all$(NC)     : Lance le projet\n"
+	@printf "  $(GREEN)make down$(NC)    : Arrete les containers\n"
+	@printf "  $(GREEN)make re$(NC)      : Relance tout (down + all)\n"
+	@printf "  $(GREEN)make clean$(NC)   : Supprime les dockers mais garde les donnees\n"
+	@printf "  $(RED)make fclean$(NC)  : Supprime tout (Donnees incluses)\n"
 
-$(OBJ_DIR)/%.o: %.cpp
-	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c $< -o $@ || { \
-		printf "$(RED)[ERREUR] Échec de la compilation de $<\n$(NC)"; exit 1; }
-	@COUNT=$$(ls -1 $(OBJ) 2>/dev/null | wc -l); \
-	RATIO=$$(expr $$COUNT \* 100 / $(TOTAL)); \
-	BARS=$$(expr $$RATIO / 10); \
-	BAR="["; \
-	for i in $$(seq 1 $$BARS); do BAR="$$BAR#"; done; \
-	for i in $$(seq $$BARS 10); do BAR="$$BAR-"; done; \
-	BAR="$$BAR]"; \
-	printf "$(ORANGE)\r$$BAR Compilation de fichier $$COUNT/$(TOTAL) : $<$(NC)\n"
+all:
+	@printf "$(BLUE)[INFO] Dockerisation...$(NC)\n"
+	@mkdir -p $(DAT_PATH)/mariadb
+	@mkdir -p $(DAT_PATH)/wordpress
+	$(BUILD) $(DFLAGS) $(SRC) $(UP)
+	@printf "$(GREEN)[SUCCES] Docker configure avec succes !$(NC)\n"
 
-$(EXEC): $(OBJ)
-#	@printf "$(BLUE)[INFO] Compilation des dépendances libft...$(NC)"
-#	@make -sC $(LIBFT)
-	@printf "$(BLUE)[INFO] Liaison finale de $(EXEC)...\n$(NC)"
-	@$(CC) -o $(EXEC) $(OBJ) || { \
-		printf "$(RED)[ERREUR] Échec de la création de $(EXEC)\n$(NC)"; exit 1; }
-	@printf "$(GREEN)[SUCCÈS] $(EXEC) compilé avec succès. ✅\n$(NC)"
+down:
+	@printf "$(BLUE)[DOWN] Arret des dockers...$(NC)\n"
+	$(BUILD) $(DFLAGS) $(SRC) $(DOWN)
 
 clean:
-	@rm -rf $(OBJ_DIR)
-#	@make clean -sC $(LIBFT)
-	@printf "$(ORANGE)[CLEAN] Fichiers objets supprimés.\n$(NC)"
+	@printf "$(ORANGE)[CLEAN] Suppressions des dockers...$(NC)\n"
+	$(BUILD) $(DFLAGS) $(SRC) $(DOWN) $(CLEAN_F)
 
 fclean: clean
-	@rm -f $(EXEC)
-#	@make fclean -sC $(LIBFT)
-	@printf "$(RED)[FCLEAN] Binaire supprimé.\n$(NC)"
-
-re: fclean all
+	@printf "$(ORANGE)[CLEAN] Suppressions des donnees dockers...$(NC)\n"
+	@sudo rm -rf $(DAT_PATH)
+	@docker system prune -a --force
+	
+re: down all
